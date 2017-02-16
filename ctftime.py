@@ -32,8 +32,8 @@ def hi(bot, trigger):
 
 
 def convert_ctftime_datetime(dt):
-    date_fmt = "%Y-%m-%dT%X"
-    return datetime.strptime(dt.replace("+00:00",""), date_fmt)
+    date_fmt = "%Y-%m-%dT%X%z"
+    return datetime.strptime(dt.replace("+00:00","+0000"), date_fmt)
 
 
 @module.commands('next')
@@ -76,7 +76,7 @@ def next_ctf_time(bot, trigger):
         if js[i]["onsite"]==True:
             msg.append("(onsite)")
 
-        bot.reply(" ".join(msg))
+        bot.say(" ".join(msg))
         i += 1
     return
 
@@ -88,7 +88,7 @@ def print_team_info(bot, team_id):
         for year in entry.keys():
             score= entry[year]["rating_points"]
             rank = entry[year]["rating_place"]
-            bot.reply("[{}] Rank {} (score={})".format(year, rank, score))
+            bot.say("[{}] Rank {} (score={})".format(year, rank, score))
     return
 
 
@@ -127,6 +127,7 @@ def show_ctf_info(bot, trigger):
         bot.reply("Cannot get '{}', got: {}".format(CTFTIME_API_EVENTS_URL, str(e) ))
         return
 
+
     msg = []
     msg.append("Name: {}".format(js["title"]))
     msg.append("URL: {}".format(js["url"]))
@@ -134,9 +135,13 @@ def show_ctf_info(bot, trigger):
     msg.append("Format: {}".format(js["format"]))
     msg.append("Location: {}".format(js["location"]))
     msg.append("On-site?: {}".format("Yes" if js["onsite"] else "No"))
-    msg.append("Start: {}".format(js["start"]))
-    msg.append("Finish: {}".format(js["finish"]))
-    for _ in msg: bot.reply(_)
+
+    dt_fmt = "%A %d %B %Y - %H:%M:%S %Z"
+    dt_start = convert_ctftime_datetime(js["start"]).strftime(dt_fmt)
+    dt_end = convert_ctftime_datetime(js["finish"]).strftime(dt_fmt)
+    msg.append("Start: {}".format(dt_start))
+    msg.append("Finish: {}".format(dt_end))
+    for _ in msg: bot.say(_)
     return
 
 
@@ -162,7 +167,7 @@ def search_ctf_by_title(bot, trigger):
         dt_start = convert_ctftime_datetime(item["start"]).strftime(dt_fmt)
         dt_end = convert_ctftime_datetime(item["finish"]).strftime(dt_fmt)
         msg = "[{}] {} ({} - {})".format(item["id"], item["title"], dt_start, dt_end)
-        bot.reply(msg)
+        bot.say(msg)
         found = True
 
     if not found:

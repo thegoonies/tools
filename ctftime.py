@@ -148,8 +148,15 @@ def show_ctf_info(bot, trigger):
 
     dt_fmt = "%A %d %B %Y - %H:%M:%S %Z"
     dt_start = convert_ctftime_datetime(js["start"])
+    dt_now = now()
+    if dt_now <= dt_start:
+        delta = dt_start-dt_now
+        msg.append("Start: {} ({} hours from now)".format(dt_start.strftime(dt_fmt),
+                                                          delta.seconds//3600 + delta.days*24))
+    else:
+        msg.append("Start: {}".format(dt_start.strftime(dt_fmt)))
+
     dt_end = convert_ctftime_datetime(js["finish"])
-    msg.append("Start: {}".format(dt_start.strftime(dt_fmt)))
     msg.append("Finish: {}".format(dt_end.strftime(dt_fmt)))
     for _ in msg: bot.say(_)
     return

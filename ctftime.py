@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import urllib.request
 import json
+import re
 
 from sopel import module
 
@@ -25,15 +26,20 @@ def get_http_json(url):
     return json.loads( raw_data )
 
 
+def convert_ctftime_datetime(dt):
+    date_fmt = "%Y-%m-%dT%X%z"
+    date = re.sub(r"([\+-])(\d{2}):(\d{2})", r"\1\2\3", dt)
+    return datetime.strptime(date, date_fmt)
+
+
+def now():
+    return datetime.now(timezone.utc)
+
+
 @module.rule('hello!?')
 def hi(bot, trigger):
     bot.say("Hi " + trigger.nick)
     return
-
-
-def convert_ctftime_datetime(dt):
-    date_fmt = "%Y-%m-%dT%X%z"
-    return datetime.strptime(dt.replace("+00:00","+0000"), date_fmt)
 
 
 @module.commands('next')
@@ -47,8 +53,7 @@ def next_ctf_time(bot, trigger):
         return
 
     i = 0
-    date_fmt = "%Y-%m-%dT%X"
-    bot.reply("Next {} CTF:".format( min(n,len(js))) )
+    bot.reply("Showing you the next {} CTF:".format( min(n,len(js))) )
     while True:
         if i==n:
             break
@@ -57,21 +62,26 @@ def next_ctf_time(bot, trigger):
         msg.append(js[i]["title"])
         dt_start = convert_ctftime_datetime(js[i]["start"])
         dt_end = convert_ctftime_datetime(js[i]["finish"])
-        dt_now = datetime.now()
-        if dt_start < dt_now:
+        dt_now = now()
+        if dt_start < dt_now <= dt_end:
             # if here, the ctf has already started
             dt_delta = dt_end - dt_now
             msg.append("finishes in")
         else:
             dt_delta = dt_start - dt_now
             msg.append("starts in")
+
         if dt_delta.days == 0:
-            msg.append("{} hours {} min".format(dt_delta.seconds/3600, dt_delta.seconds/60))
+            msg.append("{} hours".format(dt_delta.seconds//3600))
         else:
             msg.append("{} days".format(dt_delta.days))
 
-        dt_duration = dt_end - dt_start
-        msg.append("- duration: {} days, {} hours, {} minutes".format(dt_duration.days, dt_duration.seconds/3600, dt_duration.seconds/60))
+        date_fmt = "%d/%m/%y %H:%M"
+        msg.append("({} - {})".format(dt_start.strftime(date_fmt), dt_end.strftime(date_fmt),))
+
+        days = js[i]["duration"]["days"]
+        hours = js[i]["duration"]["hours"]
+        msg.append("- duration: {} days, {} hours".format(days, hours))
 
         if js[i]["onsite"]==True:
             msg.append("(onsite)")
@@ -137,10 +147,10 @@ def show_ctf_info(bot, trigger):
     msg.append("On-site?: {}".format("Yes" if js["onsite"] else "No"))
 
     dt_fmt = "%A %d %B %Y - %H:%M:%S %Z"
-    dt_start = convert_ctftime_datetime(js["start"]).strftime(dt_fmt)
-    dt_end = convert_ctftime_datetime(js["finish"]).strftime(dt_fmt)
-    msg.append("Start: {}".format(dt_start))
-    msg.append("Finish: {}".format(dt_end))
+    dt_start = convert_ctftime_datetime(js["start"])
+    dt_end = convert_ctftime_datetime(js["finish"])
+    msg.append("Start: {}".format(dt_start.strftime(dt_fmt)))
+    msg.append("Finish: {}".format(dt_end.strftime(dt_fmt)))
     for _ in msg: bot.say(_)
     return
 
@@ -174,4 +184,11 @@ def search_ctf_by_title(bot, trigger):
         bot.reply("No match")
     else:
         bot.reply("Use .ctf-info <id> to get more info")
+    return
+
+
+@module.commands("utc", "now")
+def print_utc_datetime(bot, trigger):
+    bot.say("All the time information are shown in UTC timezone")
+    bot.say("Current UTC date/time is: {}".format(now().strftime("%d/%m/%Y %H:%M:%S %Z")))
     return

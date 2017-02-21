@@ -1,20 +1,4 @@
-from datetime import datetime, timezone
-import urllib.request
-import json
-import re
-
-from sopel import module
-
-"""
-See https://ctftime.org/api/ for more info.
-"""
-
-CTFTIME_API_EVENTS_URL = "https://ctftime.org/api/v1/events/"
-CTFTIME_API_TOP10_URL  = "https://ctftime.org/api/v1/top/"
-CTFTIME_API_TEAMS_URL  = "https://ctftime.org/api/v1/teams/"
-
-
-def get_http_data(url):
+tp_data(url):
     req = urllib.request.Request(url)
     req.add_header('User-Agent', 'Mozilla/5.0')
     fd = urllib.request.urlopen(req)
@@ -38,7 +22,7 @@ def now():
 
 @module.rule('hello!?')
 def hi(bot, trigger):
-    bot.say("Hi " + trigger.nick)
+    bot.say("Hi {}".format(trigger.nick))
     return
 
 
@@ -54,10 +38,7 @@ def next_ctf_time(bot, trigger):
 
     i = 0
     bot.reply("Showing you the next {} CTF:".format( min(n,len(js))) )
-    while True:
-        if i==n:
-            break
-
+    while i < n:
         msg = ["{:d} -".format(i+1),]
         msg.append(js[i]["title"])
         dt_start = convert_ctftime_datetime(js[i]["start"])

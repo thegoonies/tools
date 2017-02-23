@@ -1,4 +1,20 @@
-tp_data(url):
+from datetime import datetime, timezone￼ +tp_data(url):
+import urllib.request
+import json
+import re
+
+from sopel import module
+
+"""
+See https://ctftime.org/api/ for more info.
+"""
+
+CTFTIME_API_EVENTS_URL = "https://ctftime.org/api/v1/events/"
+CTFTIME_API_TOP10_URL  = "https://ctftime.org/api/v1/top/"
+CTFTIME_API_TEAMS_URL  = "https://ctftime.org/api/v1/teams/"
+
+
+def get_http_data(url):
     req = urllib.request.Request(url)
     req.add_header('User-Agent', 'Mozilla/5.0')
     fd = urllib.request.urlopen(req)

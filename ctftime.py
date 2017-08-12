@@ -1,4 +1,4 @@
-from datetime import datetime, timezone￼ +tp_data(url):
+from datetime import datetime, timezone
 import urllib.request
 import json
 import re

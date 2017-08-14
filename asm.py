@@ -87,7 +87,7 @@ def assemble_command(bot, trigger, arch):
         return
 
     res = bytes(code).hex()
-    bot.reply("Assembled {} instructions for '{}': {:d} bytes".format(cnt, arch, len(res)//2))
+    # bot.reply("Assembled {} instructions for '{}': {:d} bytes".format(cnt, arch, len(res)//2))
     bot.say(res)
     return
 

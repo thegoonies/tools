@@ -51,7 +51,7 @@ def disassemble(raw_data, mode):
 def disassemble_command(bot, trigger, arch):
     insns = trigger.group(2)
     code = disassemble(bytes.fromhex(insns), arch)
-    bot.reply("Disassembled instructions for '{}'".format(arch))
+    # bot.reply("Disassembled instructions for '{}'".format(arch))
     bot.say(code.replace("\n", "; "))
     return
 

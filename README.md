@@ -1,2 +1,3 @@
-# tools
-Misc CTF tools
+# The Goonies CTF Tools Warehouse
+
+![Logo](TheGooniesLogo/TheGooniesLogo.jpg)

@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
+import pytz
 import urllib.request
 import json
 import re
+import os
 
 from sopel import module
 
@@ -13,6 +15,8 @@ CTFTIME_API_EVENTS_URL = "https://ctftime.org/api/v1/events/"
 CTFTIME_API_TOP10_URL  = "https://ctftime.org/api/v1/top/"
 CTFTIME_API_TEAMS_URL  = "https://ctftime.org/api/v1/teams/"
 
+TIMEZONE_FILE = os.getenv("HOME") + "/timezones.txt"
+VALID_TIMEZONES_FILE = os.getenv("HOME") + "/valid_timezones.txt"
 
 def get_http_data(url):
     req = urllib.request.Request(url)
@@ -32,8 +36,8 @@ def convert_ctftime_datetime(dt):
     return datetime.strptime(date, date_fmt)
 
 
-def now():
-    return datetime.now(timezone.utc)
+def now(dt=timezone.utc):
+    return datetime.now(dt)
 
 
 @module.rule('hello!?')
@@ -191,8 +195,74 @@ def search_ctf_by_title(bot, trigger):
     return
 
 
-@module.commands("utc", "now")
+@module.commands("now")
+def timezone_ccommand_handler(bot, trigger):
+    arg = trigger.group(2)
+    if not arg or len(arg.strip())==0:
+        print_utc_datetime(bot, trigger)
+        return
+
+    p = arg.split()
+    if len(p)!=2:
+        bot.reply("Incorrect argument: {}".format(arg))
+        return
+
+    action, param = p
+    if action == "add":
+        add_timezone(bot, trigger, param)
+        return
+
+    if action == "del":
+        del_timezone(bot, trigger, param)
+        return
+
+    bot.reply("Incorrect action: {}".format(action))
+    return
+
 def print_utc_datetime(bot, trigger):
+    t = now()
     bot.say("All the time information are shown in UTC timezone")
-    bot.say("Current UTC date/time is: {}".format(now().strftime("%d/%m/%Y %H:%M:%S %Z")))
+    bot.say("Current UTC time: {}".format(t.strftime("%d/%m/%Y %H:%M:%S %Z")))
+
+    if not os.path.isfile(TIMEZONE_FILE):
+        return
+
+    timezones = [x.strip() for x in open(TIMEZONE_FILE, "r").readlines() if x.strip()]
+
+    for tz in timezones:
+        try:
+            local_tz = pytz.timezone(tz)
+            local_time = now(local_tz)
+            bot.say("Current time for '{}': {}".format(tz, local_time.strftime("%d/%m/%Y %H:%M:%S %Z")))
+        except Exception as e:
+            print(str(e))
+            continue
+    return
+
+def add_timezone(bot, trigger, tz_to_add):
+    valid_timezones = [x.strip() for x in open(VALID_TIMEZONES_FILE, "r").readlines() if x.strip()]
+    if tz_to_add not in valid_timezones:
+        bot.reply("'{}' is not a valid timezone".format(tz_to_add))
+        return
+
+    with open(TIMEZONE_FILE, "r") as fd:
+        timezones = set([x.strip() for x in fd.readlines() if x.strip()])
+
+    with open(TIMEZONE_FILE, "w") as fd:
+        timezones.add(tz_to_add)
+        fd.write("\n".join(sorted(list(timezones))))
+        bot.reply("Added '{}' to timezone file".format(tz_to_add))
+    return
+
+def del_timezone(bot, trigger, tz_to_del):
+    with open(TIMEZONE_FILE, "r") as fd:
+        timezones = set([x.strip() for x in fd.readlines() if x.strip()])
+
+    with open(TIMEZONE_FILE, "w") as fd:
+        if tz_to_del not in timezones:
+            bot.reply("'{}' is not in the timezone file".format(tz_to_del))
+        else:
+            timezones.discard(tz_to_del)
+            fd.write("\n".join(sorted(list(timezones))))
+            bot.reply("'{}' is removed from the timezone file".format(tz_to_del))
     return

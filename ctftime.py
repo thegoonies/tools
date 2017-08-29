@@ -1,11 +1,17 @@
 from datetime import datetime, timezone
+from textwrap import wrap
+
 import pytz
 import urllib.request
 import json
 import re
 import os
 
+
 from sopel import module
+
+from terminaltables import AsciiTable
+
 
 """
 See https://ctftime.org/api/ for more info.
@@ -57,38 +63,57 @@ def next_ctf_time(bot, trigger):
         return
 
     i = 0
-    bot.reply("Showing you the next {} CTF:".format( min(n,len(js))) )
+    bot.say("The next {} CTF are:".format( min(n,len(js))))
+
+    table_data = [
+        ['#', 'CTF', 'Start', 'Finish', 'Duration', 'On-Site'],
+    ]
+
     while i < n:
-        msg = ["{:d} -".format(i+1),]
-        msg.append(js[i]["title"])
+        line = []
+
+        # number
+        line.append("{:d}".format(js[i]["id"]))
+
+        # ctf name
+        line.append(js[i]["title"])
+
+        # times (start / finish)
         dt_start = convert_ctftime_datetime(js[i]["start"])
         dt_end = convert_ctftime_datetime(js[i]["finish"])
         dt_now = now()
-        if dt_start < dt_now <= dt_end:
-            # if here, the ctf has already started
-            dt_delta = dt_end - dt_now
-            msg.append("finishes in")
-        else:
-            dt_delta = dt_start - dt_now
-            msg.append("starts in")
 
+        m = "in "
+        dt_delta = dt_start - dt_now
         if dt_delta.days == 0:
-            msg.append("{} hours".format(dt_delta.seconds//3600))
+            m+= "{} hours".format(dt_delta.seconds//3600)
         else:
-            msg.append("{} days".format(dt_delta.days))
+            m+= "{} days".format(dt_delta.days)
 
         date_fmt = "%d/%m/%y %H:%M"
-        msg.append("({} - {})".format(dt_start.strftime(date_fmt), dt_end.strftime(date_fmt),))
+        start_time = dt_start.strftime(date_fmt)
+        finish_time = dt_end.strftime(date_fmt)
+        line.append("{} ({})".format(start_time, m))
+        line.append(finish_time)
 
+        # duration
         days = js[i]["duration"]["days"]
         hours = js[i]["duration"]["hours"]
-        msg.append("- duration: {} days, {} hours".format(days, hours))
+        m = ""
+        if days != 0:
+            m+= "{} days ".format(days)
+        if hours != 0:
+            m+= "{} hours".format(hours)
+        line.append(m)
 
-        if js[i]["onsite"]==True:
-            msg.append("(onsite)")
+        # is_onsite
+        line.append(str(js[i]["onsite"]))
 
-        bot.say(" ".join(msg))
+        table_data.append(line)
         i += 1
+
+    for _ in AsciiTable(table_data).table.splitlines():
+        bot.say(_)
     return
 
 
@@ -138,28 +163,36 @@ def show_ctf_info(bot, trigger):
         bot.reply("Cannot get '{}', got: {}".format(CTFTIME_API_EVENTS_URL, str(e) ))
         return
 
+    table_data = [
+    ]
 
-    msg = []
-    msg.append("Name: {}".format(js["title"]))
-    msg.append("URL: {}".format(js["url"]))
-    msg.append("Description: {}".format(js["description"]))
-    msg.append("Format: {}".format(js["format"]))
-    msg.append("Location: {}".format(js["location"]))
-    msg.append("On-site?: {}".format("Yes" if js["onsite"] else "No"))
+
+    table_data.append(["Name", js["title"]])
+    table_data.append(["URL", js["url"]])
+    table_data.append(["Description", '\n'.join(wrap(js["description"], 80)) ])
+    table_data.append(["Format", js["format"]])
+    table_data.append(["Location", js["location"]])
+    table_data.append(["On-site CTF?", str(js["onsite"])])
 
     dt_fmt = "%A %d %B %Y - %H:%M:%S %Z"
     dt_start = convert_ctftime_datetime(js["start"])
     dt_now = now()
     if dt_now <= dt_start:
         delta = dt_start-dt_now
-        msg.append("Start: {} ({} hours from now)".format(dt_start.strftime(dt_fmt),
-                                                          delta.seconds//3600 + delta.days*24))
+        table_data.append(["Start time", "{} ({} hours from now)".format(dt_start.strftime(dt_fmt),
+                                                                        delta.seconds//3600 + delta.days*24)])
     else:
-        msg.append("Start: {}".format(dt_start.strftime(dt_fmt)))
+        table_data.append(["Start time", "{}".format(dt_start.strftime(dt_fmt))])
 
     dt_end = convert_ctftime_datetime(js["finish"])
-    msg.append("Finish: {}".format(dt_end.strftime(dt_fmt)))
-    for _ in msg: bot.say(_)
+    table_data.append(["Finish", "{}".format(dt_end.strftime(dt_fmt))])
+
+    table = AsciiTable(table_data)
+    table.title = "Information for CTF #{}".format(ctf_id)
+    table.inner_heading_row_border = False
+    for _ in table.table.splitlines():
+        bot.say(_)
+
     return
 
 
@@ -167,7 +200,7 @@ def show_ctf_info(bot, trigger):
 def search_ctf_by_title(bot, trigger):
     pattern = trigger.group(2)
     if not pattern or len(pattern.strip())==0:
-        bot.reply("Missing/Incorrect pattern to lookup")
+        bot.reply("Missing/Incorrect pattern to look up for")
         return
 
     pattern = pattern.strip().lower()
@@ -178,19 +211,26 @@ def search_ctf_by_title(bot, trigger):
         bot.reply("Cannot get '{}', got: {}".format(url, str(e) ))
         return
 
+    table_data = [
+        ['Id', 'CTF', 'Start', 'Finish'],
+    ]
+
     found = False
     for item in js:
         if pattern not in item["title"].lower(): continue
         dt_fmt = "%Y/%m/%d"
         dt_start = convert_ctftime_datetime(item["start"]).strftime(dt_fmt)
         dt_end = convert_ctftime_datetime(item["finish"]).strftime(dt_fmt)
-        msg = "[{}] {} ({} - {})".format(item["id"], item["title"], dt_start, dt_end)
-        bot.say(msg)
+        line = [item["id"], item["title"], dt_start, dt_end]
+        table_data.append(line)
         found = True
 
     if not found:
         bot.reply("No match")
     else:
+        for _ in AsciiTable(table_data).table.splitlines():
+            bot.say(_)
+
         bot.reply("Use .ctf-info <id> to get more info")
     return
 

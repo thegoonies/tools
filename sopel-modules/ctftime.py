@@ -9,6 +9,7 @@ import os
 
 
 from sopel import module
+from sopel.config.types import StaticSection, ValidatedAttribute
 
 from terminaltables import AsciiTable
 
@@ -23,6 +24,20 @@ CTFTIME_API_TEAMS_URL  = "https://ctftime.org/api/v1/teams/"
 
 TIMEZONE_FILE = os.getenv("HOME") + "/timezones.txt"
 VALID_TIMEZONES_FILE = os.getenv("HOME") + "/valid_timezones.txt"
+
+class CtfTimeSection(StaticSection):
+    timezone_file = FilenameAttribute('timezone_file', directory=True, default=TIMEZONE_FILE)
+    valid_timezone_file = FilenameAttribute('valid_timezone_file', directory=True, default=VALID_TIMEZONES_FILE)
+
+def configure(config):
+    config.define_section('ctftime', CtfTimeSection, validate=False)
+    config.ctftime.configure_setting('timezone_file','Path to timezone file that holds the currently defined timezones to display')
+    config.ctftime.configure_setting('valid_timezone_file','Path to timezone file')
+    return
+
+def setup(bot):
+    bot.config.define_section('ctftime', CtfTimeSection)
+    return
 
 def get_http_data(url):
     req = urllib.request.Request(url)
@@ -46,9 +61,9 @@ def now(dt=timezone.utc):
     return datetime.now(dt)
 
 
-@module.rule('hello!?')
+@module.rule('(hello|hi|hey)!?')
 def hi(bot, trigger):
-    bot.say("Hi {}".format(trigger.nick))
+    bot.say("Hi {}, how are you?".format(trigger.nick))
     return
 
 
@@ -129,6 +144,7 @@ def print_team_info(bot, team_id):
 
 
 @module.commands('team')
+@module.exmaple('team thegoonies')
 def get_team_info(bot, trigger):
     team_name = trigger.group(2)
     if not team_name:
@@ -150,6 +166,7 @@ def get_team_info(bot, trigger):
 
 
 @module.commands("ctf-info")
+@module.example(".ctf-info 1337")
 def show_ctf_info(bot, trigger):
     ctf_id = trigger.group(2)
     if not ctf_id or not ctf_id.isdigit():
@@ -163,9 +180,7 @@ def show_ctf_info(bot, trigger):
         bot.reply("Cannot get '{}', got: {}".format(CTFTIME_API_EVENTS_URL, str(e) ))
         return
 
-    table_data = [
-    ]
-
+    table_data = []
 
     table_data.append(["Name", js["title"]])
     table_data.append(["URL", js["url"]])
@@ -197,6 +212,7 @@ def show_ctf_info(bot, trigger):
 
 
 @module.commands("ctf-search")
+@module.example(".ctf-search defcon")
 def search_ctf_by_title(bot, trigger):
     pattern = trigger.group(2)
     if not pattern or len(pattern.strip())==0:
@@ -236,6 +252,9 @@ def search_ctf_by_title(bot, trigger):
 
 
 @module.commands("now")
+@module.example(".now")
+@module.example(".now add Europe/Paris")
+@module.example(".now del Europe/Paris")
 def timezone_ccommand_handler(bot, trigger):
     arg = trigger.group(2)
     if not arg or len(arg.strip())==0:
@@ -264,10 +283,11 @@ def print_utc_datetime(bot, trigger):
     bot.say("All the time information are shown in UTC timezone")
     bot.say("Current UTC time: {}".format(t.strftime("%d/%m/%Y %H:%M:%S %Z")))
 
-    if not os.path.isfile(TIMEZONE_FILE):
+    timezone_file = bot.config.ctftime.timezone_file
+    if not os.path.isfile(timezone_file):
         return
 
-    timezones = [x.strip() for x in open(TIMEZONE_FILE, "r").readlines() if x.strip()]
+    timezones = [x.strip() for x in open(timezone_file, "r").readlines() if x.strip()]
 
     for tz in timezones:
         try:
@@ -280,25 +300,30 @@ def print_utc_datetime(bot, trigger):
     return
 
 def add_timezone(bot, trigger, tz_to_add):
-    valid_timezones = [x.strip() for x in open(VALID_TIMEZONES_FILE, "r").readlines() if x.strip()]
+    timezone_file = bot.config.ctftime.timezone_file
+    valid_timezone_file = bot.config.ctftime.valid_timezone_file
+
+    valid_timezones = [x.strip() for x in open(valid_timezone_file, "r").readlines() if x.strip()]
     if tz_to_add not in valid_timezones:
         bot.reply("'{}' is not a valid timezone".format(tz_to_add))
         return
 
-    with open(TIMEZONE_FILE, "r") as fd:
+    with open(timezone_file, "r") as fd:
         timezones = set([x.strip() for x in fd.readlines() if x.strip()])
 
-    with open(TIMEZONE_FILE, "w") as fd:
+    with open(timezone_file, "w") as fd:
         timezones.add(tz_to_add)
         fd.write("\n".join(sorted(list(timezones))))
         bot.reply("Added '{}' to timezone file".format(tz_to_add))
     return
 
 def del_timezone(bot, trigger, tz_to_del):
-    with open(TIMEZONE_FILE, "r") as fd:
+    timezone_file = bot.config.ctftime.timezone_file
+
+    with open(timezone_file, "r") as fd:
         timezones = set([x.strip() for x in fd.readlines() if x.strip()])
 
-    with open(TIMEZONE_FILE, "w") as fd:
+    with open(timezone_file, "w") as fd:
         if tz_to_del not in timezones:
             bot.reply("'{}' is not in the timezone file".format(tz_to_del))
         else:

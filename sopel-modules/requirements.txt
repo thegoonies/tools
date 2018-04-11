@@ -1,0 +1,4 @@
+terminaltables
+feedparser
+requests
+bs4

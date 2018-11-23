@@ -92,22 +92,24 @@ def assemble_command(bot, trigger, arch):
     return
 
 
-@module.commands('asm-x86')
-def assemble_x86(bot, trigger):
-    return assemble_command(bot, trigger, "x86-64")
+@module.commands('asm-x32')
+def assemble_x32(bot, trigger): return assemble_command(bot, trigger, "x86-32")
+
+@module.commands('asm-x64')
+def assemble_x64(bot, trigger): return assemble_command(bot, trigger, "x86-64")
 
 @module.commands('asm-arm')
-def assemble_arm(bot, trigger):
-    return assemble_command(bot, trigger, "arm")
+def assemble_arm(bot, trigger): return assemble_command(bot, trigger, "arm")
+
+@module.commands('asm-arm-thumb')
+def assemble_arm_thumb(bot, trigger): return assemble_command(bot, trigger, "arm-thumb")
 
 @module.commands('asm-aarch64')
-def assemble_aarch64(bot, trigger):
-    return assemble_command(bot, trigger, "aarch64")
+def assemble_aarch64(bot, trigger): return assemble_command(bot, trigger, "aarch64")
 
 @module.commands('asm-mips')
-def assemble_mips(bot, trigger):
-    return assemble_command(bot, trigger, "mips")
+def assemble_mips(bot, trigger): return assemble_command(bot, trigger, "mips")
 
 @module.commands('asm-sparc')
-def assemble_sparc(bot, trigger):
-    return assemble_command(bot, trigger, "sparc")
+def assemble_sparc(bot, trigger): return assemble_command(bot, trigger, "sparc")
+

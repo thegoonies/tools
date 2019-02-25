@@ -1,3 +1,3 @@
 # The Goonies CTF Tools Warehouse
 
-![Logo](TheGooniesLogo/TheGooniesLogo.jpg)
+![Logo](TheGooniesLogo/sloth.png)
